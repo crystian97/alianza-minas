@@ -32,7 +32,7 @@ export default function Admin({ matches, onSave, navigate, error }: Props) {
   return <section className="admin-page">
     <div className="admin-heading"><div><div className="eyebrow"><ShieldCheck size={15}/>GESTÃO DO ALIANZA</div><h1>Painel <em>administrativo.</em></h1><p>Organize os confrontos e mantenha a agenda em dia.</p></div><button className="admin-secondary" onClick={()=>navigate('/agenda')}><Eye size={16}/>Ver agenda</button></div>
     <div className="admin-notice"><ShieldCheck size={20}/><p><strong>Administração local de demonstração.</strong> Sem login nesta etapa. Alterações são salvas apenas neste navegador, não são compartilhadas com o time. Use somente dados de teste.</p></div>
-    <div className="admin-stats"><article><span>Total de jogos</span><strong>{matches.length}</strong><CalendarDays/></article><article><span>Publicados</span><strong>{matches.filter(m=>m.published).length}</strong><Eye/></article><article><span>Rascunhos</span><strong>{matches.filter(m=>!m.published).length}</strong><FilePenLine/></article></div>
+    <button className="primary new-match" style={{marginTop:20}} onClick={()=>navigate('/admin/jogadores')}>Gerenciar jogadores e fotos</button><div className="admin-stats"><article><span>Total de jogos</span><strong>{matches.length}</strong><CalendarDays/></article><article><span>Publicados</span><strong>{matches.filter(m=>m.published).length}</strong><Eye/></article><article><span>Rascunhos</span><strong>{matches.filter(m=>!m.published).length}</strong><FilePenLine/></article></div>
     {error&&<p className="admin-error" role="alert">{error}</p>}{message&&<p className="admin-success" role="status">{message}</p>}
     {editing?<form className="admin-form" onSubmit={submit}><div className="section-heading"><h2>{matches.some(m=>m.id===editing.id)?'Editar partida':'Nova partida'}</h2><button type="button" className="admin-secondary" onClick={()=>setEditing(null)}><X size={16}/>Fechar</button></div><p className="form-hint">Datas e horários de Brasília. Os campos marcados com * são obrigatórios.</p><div className="form-grid">
       <label>Adversário *<input required maxLength={80} value={editing.opponent} onChange={e=>setEditing({...editing,opponent:e.target.value})} placeholder="Ex.: União FC"/></label>
@@ -48,4 +48,5 @@ export default function Admin({ matches, onSave, navigate, error }: Props) {
     <div className="admin-roadmap"><h3>Próximos módulos</h3><p>Gestão de membros, elenco, resultados e votações serão conectados ao banco na próxima etapa. Este painel já permite validar o fluxo de administração da agenda.</p></div>
   </section>;
 }
+
 

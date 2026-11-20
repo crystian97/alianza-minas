@@ -30,3 +30,11 @@ Próxima etapa: Supabase, migrações e políticas de acesso, login e gestão ad
 Acesse `/admin` ou use “Administração · demo” no rodapé. Permite cadastrar e editar partidas, salvar rascunhos, publicar/retirar da agenda e mudar situação com aviso. Dados ficam no localStorage deste navegador (chave `alianza.agenda.v1`); não há login nem controle real de permissões. Não usar dados privados. A agenda lê apenas registros publicados. Novos meses e competições alimentam os filtros automaticamente.
 
 Validação em navegador: cadastro como rascunho, ausência na agenda, publicação, persistência após recarregar, edição para adiado e retirada da agenda. Um registro identificado como teste foi mantido como rascunho. Gestão de membros, elenco, resultados e votação ainda pendente.
+
+## Jogadores e fotos
+
+Acesse `/admin/jogadores` pelo botão “Gerenciar jogadores e fotos” no painel. O CRUD permite nome, camisa (1 a 99), posição, situação, envio/troca/remoção de foto e exclusão com confirmação. Inativos aparecem somente na administração. `/demo/elenco` consulta os cadastros ativos.
+
+Os jogadores e as imagens são salvos em IndexedDB no navegador. Upload aceita JPEG, PNG e WebP até 5 MB, com otimização para até 900 pixels na maior dimensão. Autenticação e sincronização remota estão pendentes. O plano de banco e Storage privado está em `INTEGRACAO-BANCO.md`.
+
+Oito testes automatizados cobrem agenda, CRUD persistente, exclusão, validações e limites de upload. O navegador validou envio de imagem, carregamento após recarregar e inativação. Um cadastro “Teste de foto” ficou inativo como registro da verificação local.
