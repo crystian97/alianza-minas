@@ -1,10 +1,10 @@
 # Integração do elenco e das fotos
 
-Planejamento de 18/11/2026. A implementação atual usa IndexedDB para guardar cada jogador e sua foto no navegador. Os jogos continuam no localStorage. As telas administrativas de demonstração ainda precisam de autenticação para uso real. A troca de armazenamento ficará concentrada em `src/lib/players.ts`.
+Plano original de 18/11/2026, atualizado em 25/11/2026: Auth, jogos, jogadores/fotos e adversários foram conectados ao Supabase em `src/lib/remote.ts`. O armazenamento legado foi preservado para backup e importação individual na administração. As migrações aplicadas usam `profiles` para os membros. Consulte `README.md` e `supabase/README.md` para o estado implementado; os itens abaixo registram o plano e as evoluções previstas.
 
 ## Escolha proposta
 
-Supabase com PostgreSQL, Auth e Storage privado. Esta é a recomendação para implementação, ainda sem projeto remoto configurado. O modelo relacional atende jogadores, participações, gols e candidatos das votações. Firebase é uma alternativa possível com Firestore, Authentication e Storage, mas o envio de fotos exige o plano Blaze, vinculado ao faturamento. Isso pesa contra a exigência de custo zero.
+Supabase com PostgreSQL, Auth e Storage privado. O projeto remoto já está configurado e integrado. O modelo relacional atende jogadores, participações, gols e candidatos das votações. Firebase é uma alternativa possível com Firestore, Authentication e Storage, mas o envio de fotos exige o plano Blaze, vinculado ao faturamento. Isso pesa contra a exigência de custo zero.
 
 Fontes oficiais consultadas
 
@@ -27,7 +27,7 @@ Fontes oficiais consultadas
 3. Aplicar políticas também no Storage. Somente administradores enviam, substituem e removem imagens. Membros autorizados recebem URLs de curta duração ou downloads autenticados. O prazo de uma URL assinada limita o tempo de acesso após revogação do membro.
 4. Usar chave publicável no frontend com RLS. Chaves administrativas permanecem no backend.
 5. Validar nome, posição, camisa e tamanho/tipo de arquivo no servidor além das validações do formulário.
-6. Validar também CPF, e-mail e o par nome/telefone de emergência no servidor. Testar que membros e visitantes não conseguem consultar os dados privados, inclusive por chamadas diretas à API. Na demonstração local, estes campos aparecem somente no formulário administrativo, mas ainda não há controle de acesso real.
+6. Validar também CPF, e-mail e o par nome/telefone de emergência no servidor. Testar que membros e visitantes não conseguem consultar os dados privados, inclusive por chamadas diretas à API. A integração atual aplica esse controle no banco com RLS.
 
 ## Fluxo de foto e recuperação de falhas
 

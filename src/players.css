@@ -12,8 +12,8 @@
 .player-form .form-actions { margin-top: 25px; }
 .roster-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .roster-card { border: 1px solid #713a5055; border-radius: 10px; overflow: hidden; background: #19171a; }
-.roster-photo { height: 230px; position: relative; display: grid; place-items: center; background: radial-gradient(ellipse at top, #701c3b, #22151c); color: #bb7e93; }
-.roster-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.roster-photo { height: 230px; position: relative; overflow: hidden; display: grid; place-items: center; background: radial-gradient(ellipse at top, #701c3b, #22151c); color: #bb7e93; }
+.roster-photo img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
 .roster-photo strong { position: absolute; top: 12px; right: 12px; color: var(--gold); background: #171216d9; padding: 5px 10px; border-radius: 5px; font: 700 29px 'Barlow Condensed', sans-serif; }
 .roster-info { padding: 18px; }
 .roster-info > span { font-size: 11px; color: var(--gold); }

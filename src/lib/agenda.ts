@@ -1,4 +1,4 @@
-export type Match = { id: string; opponent: string; initials: string; color: string; date: string; venue: string; competition: string; home: boolean; status: 'Agendado' | 'Adiado' | 'Cancelado'; note?: string };
+export type Match = { id: string; opponent: string; initials: string; color: string; date: string; venue: string; competition: string; home: boolean; status: 'Agendado' | 'Adiado' | 'Cancelado' | 'Finalizado'; note?: string; opponentId?: string; crest?: string | null; goalsFor?: number | null; goalsAgainst?: number | null; version?: number };
 export function availableFilter(value: string, options: string[]) {
   return options.includes(value) ? value : 'Todos';
 }

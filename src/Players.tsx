@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, Plus, Shirt, Trash2, Upload } from 'lucide-react';
-import { deletePlayer, listPlayers, positions, preparePhoto, savePlayer, type Player } from './lib/players';
+import { positions, preparePhoto, type Player } from './lib/players';
+import { invitePlayer, deleteRemotePlayer, listRemotePlayers, saveRemotePlayer, errorMessage } from './lib/remote';
 import './players.css';
 
 type Props = { admin?: boolean; navigate: (path: string) => void };
@@ -20,22 +21,24 @@ export default function Players({ admin = false, navigate }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
 
   async function refresh() {
-    try { setPlayers(await listPlayers()); }
-    catch (cause) { setError((cause as Error).message); }
+    try { setPlayers(await listRemotePlayers(admin)); }
+    catch (cause) { setError(errorMessage(cause)); }
     finally { setLoading(false); }
   }
 
   useEffect(() => {
     void refresh();
     const reload = () => { void refresh(); };
+    const timer = window.setInterval(reload, 240_000);
     window.addEventListener('focus', reload);
     window.addEventListener('players-changed', reload);
     return () => {
+      window.clearInterval(timer);
       window.removeEventListener('focus', reload);
       window.removeEventListener('players-changed', reload);
       photoRequest.current++;
     };
-  }, []);
+  }, [admin]);
 
   useEffect(() => {
     if (deleting) dialog.current?.showModal();
@@ -57,7 +60,7 @@ export default function Players({ admin = false, navigate }: Props) {
     setError('');
     try {
       const photo = await preparePhoto(file);
-      if (request === photoRequest.current) setEditing(current => current ? { ...current, photo } : null);
+      if (request === photoRequest.current) setEditing(current => current ? { ...current, photo, photoRemoved: false } : null);
     } catch (cause) {
       if (request === photoRequest.current) setError((cause as Error).message);
     } finally {
@@ -71,24 +74,29 @@ export default function Players({ admin = false, navigate }: Props) {
     setBusy(true);
     setError('');
     try {
-      await savePlayer(editing);
+      const message = await saveRemotePlayer(editing);
       await refresh();
       setEditing(null);
-      setMessage('Jogador salvo. O elenco já foi atualizado neste navegador.');
-    } catch (cause) { setError((cause as Error).message); }
+      setMessage(message);
+    } catch (cause) { setError(errorMessage(cause)); }
     finally { setBusy(false); }
   }
 
+  async function invite(player:Player){
+    if(busy)return;
+    if(!player.email?.trim()){setError('Edite o jogador e salve um e-mail antes de convidar.');return;}
+    if(!window.confirm(`Convidar ou vincular ${player.name} pelo e-mail ${player.email}? A conta receberá acesso de jogador ao time e à votação.`))return;
+    setBusy(true);setError('');setMessage('');try{setMessage(await invitePlayer(player.id));await refresh();}catch(e){setError(errorMessage(e));}finally{setBusy(false);}
+  }
   async function remove() {
     if (!deleting || busy) return;
     setBusy(true);
     setError('');
     try {
-      await deletePlayer(deleting.id);
-      setMessage(`${deleting.name} foi excluído do cadastro local.`);
+      setMessage(await deleteRemotePlayer(deleting));
       setDeleting(null);
       await refresh();
-    } catch (cause) { setError((cause as Error).message); setDeleting(null); }
+    } catch (cause) { setError(errorMessage(cause)); setDeleting(null); }
     finally { setBusy(false); }
   }
 
@@ -98,10 +106,11 @@ export default function Players({ admin = false, navigate }: Props) {
   return <section className="players-page">
     {admin && <button className="text-button" onClick={() => navigate('/admin')}><ArrowLeft size={16}/>Administração da agenda</button>}
     <div className="section-heading">
-      <div><div className="eyebrow">{admin ? 'ADMINISTRAÇÃO' : 'ÁREA DO TIME · PRÉVIA'}</div><h1>{admin ? 'Gerenciar jogadores' : 'Nosso elenco'}</h1></div>
+      <div><div className="eyebrow">{admin ? 'ADMINISTRAÇÃO' : 'ÁREA DO TIME'}</div><h1>{admin ? 'Gerenciar jogadores' : 'Nosso elenco'}</h1></div>
       {admin && <button className="primary new-match" disabled={loading || busy} onClick={() => edit({ id: crypto.randomUUID(), name: '', number: 1, position: 'Goleiro', active: true, photo: null })}><Plus size={16}/>Novo jogador</button>}
     </div>
-    <p className="admin-notice">Cadastro e fotos ficam neste navegador. Acesso protegido e sincronização com o time serão integrados ao banco. Use dados de teste nesta prévia.</p>
+    <p className="admin-notice">{admin ? 'Cadastros e fotos salvos online. Dados pessoais são exclusivos da administração.' : 'Conheça quem veste a camisa do Alianza Minas.'}</p>
+    <button className="text-button" disabled={busy} onClick={() => { setError(''); void refresh(); }}>Atualizar elenco</button>
     {error && <p role="alert" className="admin-error">{error}</p>}
     {message && <p role="status" className="admin-success">{message}</p>}
     {editing ? <form className="admin-form player-form" onSubmit={submit}>
@@ -109,7 +118,7 @@ export default function Players({ admin = false, navigate }: Props) {
       <fieldset disabled={busy}>
         <div className="photo-editor">
           {editing.photo ? <img src={editing.photo} alt={`Prévia da foto de ${editing.name || 'jogador'}`}/> : <div className="photo-placeholder"><Shirt size={65}/></div>}
-          <div><label className="photo-label"><Upload size={16}/>Selecionar foto<input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></label><p>JPG, PNG ou WebP, até 5 MB. Prefira um retrato com uniforme. A imagem será otimizada ao salvar.</p>{photoBusy && <p role="status">Preparando foto…</p>}{editing.photo && <button type="button" className="text-button" onClick={() => { photoRequest.current++; setPhotoBusy(false); setEditing({ ...editing, photo: null }); }}>Remover foto</button>}</div>
+          <div><label className="photo-label"><Upload size={16}/>Selecionar foto<input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { void upload(event.target.files?.[0]); event.target.value = ''; }}/></label><p>JPG, PNG ou WebP, até 5 MB. Prefira um retrato com uniforme. A imagem será otimizada ao salvar.</p>{photoBusy && <p role="status">Preparando foto…</p>}{editing.photo && <button type="button" className="text-button" onClick={() => { photoRequest.current++; setPhotoBusy(false); setEditing({ ...editing, photo: null, photoRemoved: true }); }}>Remover foto</button>}</div>
         </div>
         <div className="form-grid">
           <label>Nome completo *<input required autoComplete="name" maxLength={120} value={editing.name} onChange={event => setEditing({ ...editing, name: event.target.value })}/></label>
@@ -130,13 +139,13 @@ export default function Players({ admin = false, navigate }: Props) {
         <p className="result-count" aria-live="polite">{visible.length} jogadores encontrados</p>
         <div className="roster-grid">{visible.map(player => <article className="roster-card" key={player.id}>
           <div className="roster-photo">{player.photo ? <img src={player.photo} alt={player.name} loading="lazy"/> : <Shirt size={80}/>}<strong>#{player.number}</strong></div>
-          <div className="roster-info"><span>{player.position}{!player.active && ' · Inativo'}</span><h2>{player.name}</h2>{admin && <div className="roster-actions"><button className="admin-secondary" onClick={() => edit(player)}>Editar {player.name}</button><button className="text-button" aria-label={`Excluir ${player.name}`} onClick={() => setDeleting(player)}><Trash2 size={16}/></button></div>}</div>
+          <div className="roster-info"><span>{player.position}{!player.active && ' · Inativo'}</span><h2>{player.name}</h2>{admin && <><p className="player-access-status">{player.profileId?'Conta vinculada · gerencie permissões em Usuários':'Sem conta vinculada'}</p><button className="admin-secondary" disabled={busy||!player.active} onClick={()=>void invite(player)}>{player.profileId?'Vincular / reativar acesso':'Convidar para acessar'}</button></>}{admin && <div className="roster-actions"><button className="admin-secondary" onClick={() => edit(player)}>Editar {player.name}</button><button className="text-button" aria-label={`Excluir ${player.name}`} onClick={() => setDeleting(player)}><Trash2 size={16}/></button></div>}</div>
         </article>)}</div>
         {!visible.length && <div className="empty">Nenhum jogador encontrado. Ajuste os filtros ou cadastre um jogador.</div>}
       </>}
     </>}
     <dialog ref={dialog} onCancel={event => { if (busy) event.preventDefault(); else setDeleting(null); }} aria-labelledby="delete-player-title">
-      <h2 id="delete-player-title">Excluir {deleting?.name}?</h2><p className="delete-description">O cadastro e a foto serão removidos deste navegador. Você também pode cancelar e marcar o jogador como inativo para preservar o cadastro.</p><div className="form-actions"><button className="admin-secondary" disabled={busy} onClick={() => setDeleting(null)}>Cancelar</button><button className="primary" disabled={busy} onClick={() => void remove()}>{busy ? 'Excluindo…' : 'Confirmar exclusão'}</button></div>
+      <h2 id="delete-player-title">Excluir {deleting?.name}?</h2><p className="delete-description">O cadastro será removido do banco online. Jogadores com histórico não podem ser excluídos; use a opção Inativo para preservá-los.</p><div className="form-actions"><button className="admin-secondary" disabled={busy} onClick={() => setDeleting(null)}>Cancelar</button><button className="primary" disabled={busy} onClick={() => void remove()}>{busy ? 'Excluindo…' : 'Confirmar exclusão'}</button></div>
     </dialog>
   </section>;
 }

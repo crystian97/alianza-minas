@@ -13,6 +13,10 @@ export type Player = {
   position: string;
   active: boolean;
   photo: string | null;
+  photoPath?: string | null;
+  profileId?: string | null;
+  photoRemoved?: boolean;
+  version?: number;
 };
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -48,6 +52,10 @@ export async function listPlayers(): Promise<Player[]> {
 }
 
 export async function savePlayer(player: Player): Promise<void> {
+  await writePlayer(player.id, validatePlayer(player));
+}
+
+export function validatePlayer(player: Player): Player {
   if (!player.name.trim() || !Number.isInteger(player.number) || player.number < 1 || player.number > 99 || !positions.includes(player.position)) {
     throw new Error('Informe nome, posição e número de camisa de 1 a 99.');
   }
@@ -67,7 +75,7 @@ export async function savePlayer(player: Player): Promise<void> {
   if (emergencyContactPhone && (phoneDigits.length < 10 || phoneDigits.length > 15)) {
     throw new Error('Informe um telefone de emergência válido, incluindo DDD.');
   }
-  await writePlayer(player.id, {
+  return {
     ...player,
     name: player.name.trim(),
     cpf,
@@ -75,7 +83,7 @@ export async function savePlayer(player: Player): Promise<void> {
     address: (player.address ?? '').trim(),
     emergencyContactName,
     emergencyContactPhone,
-  });
+  };
 }
 
 function validCpf(cpf: string): boolean {

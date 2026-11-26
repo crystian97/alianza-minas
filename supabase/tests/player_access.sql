@@ -1,0 +1,30 @@
+begin;
+do $$
+declare a uuid:=gen_random_uuid(); u uuid:=gen_random_uuid(); other_user uuid:=gen_random_uuid(); p uuid:=gen_random_uuid(); blocked boolean; target jsonb;
+begin
+ insert into auth.users(id,email) values(a,'access-admin@example.invalid'),(u,'athlete-access@example.invalid'),(other_user,'other-access@example.invalid');
+ update public.profiles set role='admin',active=true where id=a;
+ insert into public.players(id,name,number,position) values(p,'Teste de vínculo',90,'Atacante');
+ insert into public.player_private_details(player_id,email) values(p,'athlete-access@example.invalid');
+ perform set_config('request.jwt.claim.sub',u::text,true);
+ execute 'set local role authenticated';
+ blocked:=false;
+ begin perform public.link_player_access(p,u,1); exception when insufficient_privilege then blocked:=true; end;
+ if not blocked then raise exception 'Membro conseguiu ativar próprio acesso.'; end if;
+ execute 'reset role';
+ perform set_config('request.jwt.claim.sub',a::text,true);
+ execute 'set local role authenticated';
+ target:=public.player_access_target(p);
+ if (target->>'user_id')::uuid<>u then raise exception 'Lookup incorreto.'; end if;
+ blocked:=false;
+ begin perform public.link_player_access(p,other_user,1); exception when raise_exception then blocked:=true; end;
+ if not blocked then raise exception 'Vínculo com e-mail diferente permitido.'; end if;
+ perform public.link_player_access(p,u,1);
+ if not exists(select 1 from public.players where id=p and profile_id=u) or not exists(select 1 from public.profiles where id=u and active and role='player') then raise exception 'Vínculo ou ativação ausente.'; end if;
+ blocked:=false;
+ begin perform public.link_player_access(p,u,1); exception when serialization_failure then blocked:=true; end;
+ if not blocked then raise exception 'Versão obsoleta aceita.'; end if;
+ execute 'reset role';
+end $$;
+rollback;
+select 'OK: convite/vínculo restrito a admin, email correspondente e versão validada.' as resultado;
