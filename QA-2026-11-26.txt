@@ -1,0 +1,31 @@
+QA ALIANZA MINAS — 26/11/2026
+
+Ambiente: frontend localhost com Supabase remoto; Chrome desktop com viewports móveis simuladas.
+Decisão: apto para deploy de homologação; validar domínio público e e-mail antes de entrega externa.
+
+APROVADO
+- 9 testes unitários: filtros, datas Brasília, validações e armazenamento legado.
+- SQL em PostgreSQL local/PGlite: RLS, CRUDs, atomicidade, concorrência por versão, acesso administrativo, votos únicos/imutáveis, empate, prazo e ausência de votos, vínculo por e-mail, preservação do histórico com publicação na agenda.
+- 10 cenários Playwright com API simulada: acesso, jogador/foto, adversário/jogo, membros/participações/votação, cadastro/recuperação, escudos, inicial mobile, voto após reload, conta inativa e falha ao salvar.
+- Build TypeScript/Vite.
+- API remota sem login: agenda 200 com um jogo publicado; jogadores, detalhes privados, votos e perfis 401; convite anônimo 401. Nenhuma escrita nessa verificação remota.
+- Agenda real no navegador: um confronto visível em 360,390,768,1440 px, sem overflow horizontal; detalhes abrem/fecham; sem erros JavaScript observados; /admin exige login.
+
+LIMITES E PENDÊNCIAS
+- Não é teste em celular físico ou Safari/iOS.
+- CRUDs autenticados desta rodada foram simulados; não foram criadas novas contas nem enviados e-mails.
+- Usuário confirmou anteriormente convite recebido, senha definida, voto visível e publicação após etapa 6; esses eventos não foram repetidos nesta rodada.
+- Cloudflare não publicado: falta verificar redirects SPA, env do build, domínio HTTPS, APP_URL e URLs Auth.
+- SMTP para destinatários externos e personalização do template ainda pendentes.
+- Testar confirmação/recuperação em navegador separado no endereço final e com o destinatário antes de anunciar disponibilidade.
+- Atleta inativo não desativa automaticamente login: revogação fica em Usuários.
+- Votação publicada é imutável; limpar dados fictícios vinculados exige planejamento, não apagar histórico automaticamente.
+
+COMPLEMENTO: TESTES MANUAIS AUTENTICADOS
+- Administração real: jogo de teste criado em rascunho, publicado e retirado da agenda; busca e filtro de mês conferidos. Rascunho mantido para revisão.
+- Edição de posição de atleta e cidade de adversário persistiu após recarregar; valores originais restaurados.
+- Sessão de jogador: elenco, busca, filtro por posição, agenda e detalhes aprovados. Dados pessoais e controles de edição ausentes na interface.
+- Acesso direto a /admin e /admin/jogadores bloqueado para jogador.
+- Voto existente permaneceu registrado ao reabrir o aplicativo, sem botão para votar novamente; totais visíveis sem identificação de eleitores.
+- Nenhum novo voto ou convite enviado neste complemento. Primeiro voto com outra conta e teste no celular pelo endereço publicado permanecem pendentes.
+- Servidor local reiniciado após conexão recusada; testes retomados com sucesso.

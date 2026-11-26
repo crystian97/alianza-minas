@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 // Contratos HTTP simulados: nenhum teste de navegador grava dados no projeto real.
 async function backend(page: Page, role = 'admin') {
   const id = '10000000-0000-4000-8000-000000000001';
-  const state = { members: [{id:"pending",display_name:"Pessoa pendente",email:"pessoa@example.invalid",role:"player",active:false}] as any[], parts: [] as any[], polls: [] as any[], players: [] as any[], details: [] as any[], opponents: [] as any[], matches: [] as any[], privateReads: 0, uploads: [] as string[], signingUnavailable: false };
+  const state = { active:true, voted:false, voteCalls:0, failSave:false, members: [{id:"pending",display_name:"Pessoa pendente",email:"pessoa@example.invalid",role:"player",active:false}] as any[], parts: [] as any[], polls: [] as any[], players: [] as any[], details: [] as any[], opponents: [] as any[], matches: [] as any[], privateReads: 0, uploads: [] as string[], signingUnavailable: false };
   const token = `${Buffer.from('{}').toString('base64url')}.${Buffer.from(JSON.stringify({ sub: id, exp: Math.floor(Date.now()/1000)+3600, role:'authenticated' })).toString('base64url')}.test`;
   const user = { id, email: 'admin@example.invalid', aud:'authenticated', role:'authenticated', app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString() };
   await page.route('https://*.supabase.co/**',async route=>{
@@ -13,10 +13,11 @@ async function backend(page: Page, role = 'admin') {
     if(path==='/auth/v1/token')return reply({access_token:token,refresh_token:'test-refresh',expires_in:3600,token_type:'bearer',user});
     if(path==='/auth/v1/user')return reply(user);
     if(path==='/auth/v1/logout')return reply({});
-    if(path==='/rest/v1/profiles')return reply({id,display_name:'Administrador teste',role,active:true});
+    if(path==='/rest/v1/profiles')return reply({id,display_name:'Administrador teste',role,active:state.active});
     if(path==='/rest/v1/players')return reply(state.players);
     if(path==='/rest/v1/player_private_details'){state.privateReads++;return reply(state.details);}
     if(path==='/rest/v1/rpc/save_player'){
+      if(state.failSave)return reply({message:'Falha de conexão simulada'},503);
       const input=body!();const index=state.players.findIndex(p=>p.id===input.p_player.id);
       const previous=state.players[index];
       if(previous&&previous.version!==input.p_expected_version)return reply({code:'40001',message:'Conflito'},409);
@@ -44,6 +45,9 @@ async function backend(page: Page, role = 'admin') {
       if(url.searchParams.get('published')==='eq.true')items=items.filter(p=>p.published);
       return reply(key==='matches'?items.map(m=>({...m,opponents:state.opponents.find(o=>o.id===m.opponent_id)})):items);
     }
+    if(path==='/rest/v1/rpc/has_voted')return reply(state.voted);
+    if(path==='/rest/v1/rpc/poll_results')return reply(state.players.map(p=>({player_id:p.id,votes:state.voted?1:0,percentage:state.voted?100:0,winner:false})));
+    if(path==='/rest/v1/rpc/cast_vote'){state.voteCalls++;if(state.voted)return reply({code:'23505',message:'Voto já registrado'},409);state.voted=true;return reply(null);}
     if(path==='/rest/v1/rpc/admin_members')return reply(state.members);
     if(path==='/rest/v1/rpc/manage_member'){const p=body!();Object.assign(state.members.find(m=>m.id===p.p_id),{display_name:p.p_name,role:p.p_role,active:p.p_active});return reply(null);}
     if(path==='/rest/v1/match_players')return reply(state.parts);
@@ -113,4 +117,17 @@ test('escudo do adversário: upload, persistência e remoção com sigla',async(
 
 test('inicial mobile mostra próximo confronto e totais reais',async({page})=>{
  const state=await backend(page);state.opponents.push({id:'other',name:'União FC',initials:'UFC',color:'#004499'});state.matches.push({id:'past',opponent_id:'other',starts_at:'2026-01-01T20:00:00Z',venue:'Arena',competition:'Amistoso',home:true,status:'Finalizado',published:true,goals_for:3,goals_against:1,version:1},{id:'next',opponent_id:'other',starts_at:'2099-12-01T20:00:00Z',venue:'Arena Barbosa',competition:'Campeonato',home:true,status:'Agendado',published:true,version:1});await page.setViewportSize({width:390,height:844});await login(page);await expect(page.locator('.next-game')).toContainText('União FC');await expect(page.locator('.home-stats article').nth(1)).toContainText('3');await expect(page.locator('.home-stats article').nth(3)).toContainText('1');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await page.screenshot({path:'test-results/home-mobile.png',fullPage:true});
+});
+
+
+test('jogador vota uma vez e recarregar não libera segundo voto',async({page})=>{
+ const state=await backend(page,'player');state.players.push({id:'athlete',name:'Atleta votação',number:9,position:'Atacante',active:true});state.polls.push({id:'poll',title:'Votação aberta',state:'published',opens_at:new Date(Date.now()-3600000).toISOString(),closes_at:new Date(Date.now()+3600000).toISOString()});await login(page);await page.goto('/time/votacoes');page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Votar',exact:true}).click();await expect(page.getByText('Seu voto foi registrado.',{exact:false})).toBeVisible();await expect(page.getByRole('button',{name:'Votar',exact:true})).toHaveCount(0);await page.reload();await expect(page.getByText('Seu voto foi registrado.',{exact:false})).toBeVisible();await expect(page.getByRole('button',{name:'Votar',exact:true})).toHaveCount(0);expect(state.voteCalls).toBe(1);
+});
+
+test('conta inativa não acessa elenco nem administração',async({page})=>{
+ const state=await backend(page,'player');state.active=false;await page.goto('/entrar');await page.getByLabel('E-mail',{exact:true}).fill('inactive@example.invalid');await page.getByLabel('Senha',{exact:true}).fill('test-password');await page.getByRole('button',{name:'Entrar',exact:true}).click();await expect(page.getByText('Seu acesso precisa ser liberado pelo administrador.')).toBeVisible();await page.goto('/time/elenco');await expect(page.getByText('Seu acesso precisa ser liberado pelo administrador.')).toBeVisible();expect(state.privateReads).toBe(0);
+});
+
+test('falha ao salvar mantém formulário sem anunciar sucesso',async({page})=>{
+ const state=await backend(page);state.failSave=true;await login(page);await page.goto('/admin/jogadores');await page.getByRole('button',{name:'Novo jogador',exact:true}).click();await page.getByLabel('Nome completo *').fill('Atleta falha');await page.getByRole('button',{name:'Salvar jogador'}).click();await expect(page.getByRole('alert')).toContainText('Falha de conexão simulada');await expect(page.getByLabel('Nome completo *')).toHaveValue('Atleta falha');expect(state.players).toHaveLength(0);state.failSave=false;await page.getByRole('button',{name:'Salvar jogador'}).click();await expect(page.getByText('Jogador salvo no banco online.')).toBeVisible();expect(state.players).toHaveLength(1);
 });

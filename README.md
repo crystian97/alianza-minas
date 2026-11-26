@@ -36,7 +36,7 @@ Entrada JPEG/PNG/WebP até 5 MB, otimizada para até 900 pixels. Upload em camin
 
 - `pnpm test`: regras de agenda, validação e preservação do armazenamento legado (9 testes).
 - `pnpm test:db`: esquema, RLS, CRUDs, votação, transações de jogador e conflito de versões em PostgreSQL local via PGlite. Auth/Storage simulados; scripts SQL também disponíveis para execução no Supabase.
-- `pnpm exec playwright test`: navegador Chrome instalado; contratos HTTP do Supabase simulados, sem gravar no projeto real. Cobre acesso, login, CRUD de jogador/foto, jogo publicado, aprovação de membro, participações, publicação de votação, solicitação de acesso, recuperação, escudos e inicial mobile (7 testes).
+- `pnpm exec playwright test`: navegador Chrome instalado; contratos HTTP do Supabase simulados, sem gravar no projeto real. Cobre acesso, login, CRUD de jogador/foto, jogo publicado, aprovação de membro, participações, publicação de votação, solicitação de acesso, recuperação, escudos e inicial mobile (10 testes, incluindo voto após recarregar, conta inativa e falha ao salvar).
 - `pnpm build`: TypeScript e build de produção.
 
 Validação remota: API pública da agenda respondeu; acesso anônimo a jogadores/dados pessoais foi bloqueado. Login real confirmado pelo responsável. Cadastro “Teste de integração Supabase”, camisa 99, criado inativo para verificar persistência após recarregar. As verificações locais não substituem testes com sessões reais de jogador/comissão e dois dispositivos.
